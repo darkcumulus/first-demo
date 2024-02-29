@@ -2,13 +2,20 @@ from django.shortcuts import get_object_or_404, render
 from django.http import Http404
 from django.core.paginator import PageNotAnInteger, Paginator, EmptyPage
 from django.views.decorators.http import require_POST
+from taggit.models import Tag
 
 from .models import Post, Comment
 from .forms import CommentForm
 
 
-def post_list(request):
+def post_list(request, tag_slug=None):
     post_list = Post.published.all()
+
+    tag = None
+    if tag_slug:
+        tag = get_object_or_404(Tag, slug=tag_slug)
+        post_list = post_list.filter(tags__in=[tag])
+
     paginator = Paginator(post_list, 3)
     page_number = request.GET.get('page', 1)
     try:
@@ -19,7 +26,8 @@ def post_list(request):
         posts = paginator.page(paginator.num_pages)
     return render(request, 
                   "blog/post/list.html",
-                  {"posts":posts})
+                  {"posts":posts,
+                   "tag": tag})
 
 def post_detail(request, year, month, day, post):
     post = get_object_or_404(Post, 
@@ -36,6 +44,7 @@ def post_detail(request, year, month, day, post):
                   {"post":post,
                    "comments": comments,
                    "form":form})
+
 @require_POST
 def post_comment(request, post_id):
     post = get_object_or_404(Post, id=post_id, status=Post.Status.PUBLISHED)
